@@ -5,7 +5,6 @@
 **一键启动 Hermes Agent + WebUI 的现代化桌面启动器**
 
 ![Windows](https://img.shields.io/badge/Windows-11-blue?logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-13%2B-black?logo=apple&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyInstaller](https://img.shields.io/badge/Build-PyInstaller-FF6B6B)
 ![License](https://img.shields.io/badge/License-MIT-green)
