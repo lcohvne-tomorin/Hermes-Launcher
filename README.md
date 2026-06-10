@@ -7,7 +7,6 @@
 ![Windows](https://img.shields.io/badge/Windows-11-blue?logo=windows&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyInstaller](https://img.shields.io/badge/Build-PyInstaller-FF6B6B)
-![hermes-webui](https://github.com/nesquena/hermes-webui)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 </div>
@@ -71,21 +70,6 @@ build_windows.bat
 
 > 构建产物位于 `dist/HermesLauncher.exe`，约 33 MB。
 
-### macOS .app
-
-需要在 macOS 系统上运行：
-
-```bash
-chmod +x build_macos.sh
-./build_macos.sh
-```
-
-或直接使用 PyInstaller spec 文件：
-
-```bash
-pip install pyinstaller
-pyinstaller HermesLauncher.spec
-```
 
 
 ### 如何更换 WebUI 端口？
