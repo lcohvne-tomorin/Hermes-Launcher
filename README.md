@@ -7,6 +7,7 @@
 ![Windows](https://img.shields.io/badge/Windows-11-blue?logo=windows&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyInstaller](https://img.shields.io/badge/Build-PyInstaller-FF6B6B)
+![hermes-webui](https://github.com/nesquena/hermes-webui)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 </div>
@@ -86,38 +87,6 @@ pip install pyinstaller
 pyinstaller HermesLauncher.spec
 ```
 
-## 📁 文件结构
-
-```
-HermesLauncher/
-├── launcher.py              # 🎯 主程序入口
-├── config.json              # ⚙️ 配置文件（自动生成）
-├── HermesLauncher.spec      # 📦 PyInstaller 构建配置
-├── build_windows.bat        # 🪟 Windows 构建脚本
-├── build_macos.sh           # 🍎 macOS 构建脚本
-├── README.md                # 📖 本文件
-│
-├── hermes-webui/            # 🌐 Hermes WebUI（自动下载）
-│   ├── bootstrap.py         #     WebUI 启动脚本
-│   ├── server.py            #     WebUI 服务器
-│   ├── CHANGELOG.md         #     版本更新日志
-│   └── api/                 #     API 模块
-│
-├── dist/                    # 📂 构建输出目录
-│   └── HermesLauncher.exe   #     编译后的可执行文件
-│
-└── build/                   # 🛠 构建临时目录（可删除）
-```
-
-## ❓ 常见问题
-
-### Hermes Agent 版本号显示"已就绪"而非具体版本号？
-
-启动器通过运行 `hermes --version` 获取版本号。如果您的 `hermes` 命令在终端中能输出版本号但启动器未获取到，可能是子进程环境问题。尝试在设置中手动指定 `hermes` 路径。
-
-### WebUI 版本号显示不正确？
-
-启动器从 [`hermes-webui/CHANGELOG.md`](hermes-webui/CHANGELOG.md) 解析最新版本标签（如 `v0.51.350`）。如果文件缺失或格式异常，会回退到配置文件中的缓存版本号。可尝试重新下载 WebUI。
 
 ### 如何更换 WebUI 端口？
 
@@ -134,10 +103,11 @@ HermesLauncher/
 
 | 组件 | 技术 |
 |------|------|
+| Hermes WebUI | [hermes-webui](https://github.com/nesquena/hermes-webui) |
 | GUI 框架 | [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) 5.2+ |
 | 打包工具 | [PyInstaller](https://pyinstaller.org/) 6.20+ |
 | 目标运行时 | Hermes Agent + Hermes WebUI |
-| 支持平台 | Windows 10/11, macOS 13+ |
+| 支持平台 | Windows 10/11 |
 
 ## 📄 许可证
 
