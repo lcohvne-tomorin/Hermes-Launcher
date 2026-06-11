@@ -34,14 +34,14 @@
 
 ### 方式一：下载预编译的 EXE（推荐）
 
-1. 前往 [Releases](https://github.com/github.com/lcohvne-tomorin/HermesLauncher/releases) 下载最新版 `HermesLauncher.exe`
+1. 前往 [Releases](https://github.com/lcohvne-tomorin/Hermes-Launcher/releases) 下载最新版 `HermesLauncher.exe`
 2. 双击运行即可
 
 ### 方式二：从源码运行
 
 ```bash
 # 克隆仓库
-git clone https://github.com/lcohvne-tomorin/HermesLauncher.git
+git clone https://github.com/lcohvne-tomorin/Hermes-Launcher.git
 cd HermesLauncher
 
 # 安装依赖
