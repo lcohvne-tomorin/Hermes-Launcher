@@ -32,7 +32,7 @@ from urllib.error import URLError
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "Hermes Launcher"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 # In PyInstaller --onefile mode, resolve BASE_DIR from the actual exe location
 if getattr(sys, 'frozen', False):
@@ -99,6 +99,7 @@ def find_python() -> str:
                 result = subprocess.run(
                     [exe, "-c", "import customtkinter"],
                     capture_output=True, text=True, timeout=10,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 if result.returncode == 0:
                     return exe
@@ -129,6 +130,7 @@ def find_python() -> str:
             result = subprocess.run(
                 [exe, "-c", "import customtkinter"],
                 capture_output=True, text=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             if result.returncode == 0:
                 return exe
@@ -219,9 +221,11 @@ def _run_cmd_capture(cmd, *, timeout=15) -> str:
     # Method 1: subprocess.run with capture_output
     try:
         if isinstance(cmd, list):
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
         else:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, shell=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, shell=True,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
         if result.returncode == 0:
             out = (result.stdout or "").strip() or (result.stderr or "").strip()
             if out:
@@ -238,6 +242,7 @@ def _run_cmd_capture(cmd, *, timeout=15) -> str:
             stderr=subprocess.PIPE,
             text=True,
             shell=isinstance(cmd, str),
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         stdout, stderr = proc.communicate(timeout=timeout)
         if proc.returncode == 0:
@@ -252,6 +257,7 @@ def _run_cmd_capture(cmd, *, timeout=15) -> str:
         cmd_str = _to_cmd_str(cmd)
         result = subprocess.run(
             cmd_str, capture_output=True, text=True, timeout=timeout, shell=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         if result.returncode == 0:
             out = (result.stdout or "").strip() or (result.stderr or "").strip()
@@ -265,6 +271,7 @@ def _run_cmd_capture(cmd, *, timeout=15) -> str:
         try:
             out = subprocess.check_output(
                 cmd, stderr=subprocess.STDOUT, timeout=timeout, text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             if out and out.strip():
                 return out.strip()
@@ -279,6 +286,7 @@ def _run_cmd_capture(cmd, *, timeout=15) -> str:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=isinstance(cmd, str),
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         stdout_bytes, stderr_bytes = proc.communicate(timeout=timeout)
         if proc.returncode == 0:
@@ -556,6 +564,7 @@ class ServiceManager:
                 result = subprocess.run(
                     [hermes, "--version"],
                     capture_output=True, text=True, timeout=30,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 if result.returncode == 0:
                     version = (result.stdout or result.stderr).strip()
@@ -666,6 +675,7 @@ class ServiceManager:
                     stderr=subprocess.STDOUT,
                     text=True,
                     env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 self._processes["webui"] = proc
 
@@ -1418,6 +1428,7 @@ if __name__ == "__main__":
         print("正在安装 customtkinter...")
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "customtkinter"],
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         import customtkinter
 
