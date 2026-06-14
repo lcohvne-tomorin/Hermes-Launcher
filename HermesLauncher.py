@@ -32,16 +32,43 @@ from urllib.error import URLError
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "Hermes Launcher"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
+
+# Detect PyInstaller frozen mode (sys.executable is the launcher EXE, not Python)
+FROZEN = getattr(sys, 'frozen', False)
 
 # In PyInstaller --onefile mode, resolve BASE_DIR from the actual exe location
-if getattr(sys, 'frozen', False):
+if FROZEN:
     BASE_DIR = Path(os.path.realpath(sys.argv[0])).resolve().parent
 else:
     BASE_DIR = Path(__file__).resolve().parent
 
+
+def _resolve_webui_dir() -> Path:
+    """Return the hermes-webui directory, preferring external alongside exe.
+
+    In PyInstaller --add-data builds, the bundled copy lives under sys._MEIPASS.
+    The external directory alongside the EXE takes precedence so that runtime
+    downloads and updates continue to work.
+    """
+    base = Path(os.path.realpath(sys.argv[0])).resolve().parent
+    external = base / "hermes-webui"
+    if (external / "bootstrap.py").exists():
+        return external
+
+    # Fallback: PyInstaller bundled resources via --add-data
+    meipass = getattr(sys, '_MEIPASS', None)
+    if meipass:
+        bundled = Path(meipass) / "hermes-webui"
+        if (bundled / "bootstrap.py").exists():
+            return bundled
+
+    # Return the default (may not exist yet — user can download later)
+    return external
+
+
 CONFIG_PATH = BASE_DIR / "config.json"
-WEBUI_DIR = BASE_DIR / "hermes-webui"
+WEBUI_DIR = _resolve_webui_dir()
 WEBUI_BOOTSTRAP = WEBUI_DIR / "bootstrap.py"
 GITHUB_API = "https://api.github.com/repos/nesquena/hermes-webui/releases/latest"
 
@@ -84,61 +111,108 @@ def log_time() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
 
-def find_python() -> str:
-    """Auto-detect a Python interpreter that can run customtkinter."""
-    import importlib.util
+def find_python() -> Optional[str]:
+    """Auto-detect a Python interpreter that can run the WebUI.
+
+    In PyInstaller frozen mode, NEVER returns sys.executable (which is the
+    launcher EXE itself).  Returns None when no valid Python is found.
+    """
+    import glob as _glob
 
     cfg = load_config()
 
-    # 1) Check config override
+    # ── helper: is this executable a real Python interpreter? ──────────────
+    def _is_real_python(exe_path: str) -> bool:
+        """Run exe --version and check that the output contains 'Python'."""
+        try:
+            result = subprocess.run(
+                [exe_path, "--version"],
+                capture_output=True, text=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            out = (result.stdout + result.stderr)
+            return result.returncode == 0 and "Python" in out
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
+    # ── helper: can this Python import customtkinter? ─────────────────────
+    def _can_import_ctk(exe_path: str) -> bool:
+        """Only used for the config override — user-set paths get strict validation."""
+        try:
+            result = subprocess.run(
+                [exe_path, "-c", "import customtkinter"],
+                capture_output=True, text=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            return result.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
+    # 1) Check config override — strict validation (needs customtkinter)
     if cfg.get("python_path"):
         exe = cfg["python_path"]
-        if Path(exe).exists():
-            # Verify it can import customtkinter
-            try:
-                result = subprocess.run(
-                    [exe, "-c", "import customtkinter"],
-                    capture_output=True, text=True, timeout=10,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-                if result.returncode == 0:
-                    return exe
-            except (OSError, subprocess.TimeoutExpired):
-                pass
+        if Path(exe).exists() and _can_import_ctk(exe):
+            return exe
 
-    # 2) Check known Python installs for customtkinter
+    # 2) Check PATH
     candidates = []
     for name in ["python3", "python"]:
         exe = shutil.which(name)
         if exe and exe not in candidates:
             candidates.append(exe)
 
-    # Common install locations on Windows
-    import os as _os
-    home = _os.path.expanduser("~")
-    for ver in ["313", "312", "311", "310"]:
-        for base in [
-            _os.path.join(home, "AppData", "Local", "Programs", "Python", f"Python{ver}"),
-            _os.path.join(_os.environ.get("ProgramFiles", "C:\\Program Files"), f"Python{ver}"),
-        ]:
-            exe = _os.path.join(base, "python.exe")
-            if _os.path.exists(exe) and exe not in candidates:
-                candidates.append(exe)
+    # 3) Glob-based discovery — any Python3* install, newest first
+    home = os.path.expanduser("~")
+    search_roots = [
+        os.path.join(home, "AppData", "Local", "Programs", "Python"),
+        os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files")),
+        os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Python"),
+        "C:\\Python",
+        "C:\\Python3",
+        # conda / miniconda / miniforge roots
+        os.path.join(home, "miniconda3"),
+        os.path.join(home, "miniforge3"),
+        os.path.join(home, "anaconda3"),
+        os.path.join(home, "AppData", "Local", "miniconda3"),
+        os.path.join(home, "AppData", "Local", "miniforge3"),
+        os.path.join(home, "AppData", "Local", "anaconda3"),
+        os.path.join(home, "AppData", "Roaming", "miniconda3"),
+        os.path.join(home, "AppData", "Roaming", "miniforge3"),
+    ]
 
-    for exe in candidates:
+    seen = {os.path.normcase(c) for c in candidates}
+    for root in search_roots:
+        if not root or not os.path.isdir(root):
+            continue
         try:
-            result = subprocess.run(
-                [exe, "-c", "import customtkinter"],
-                capture_output=True, text=True, timeout=10,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
-            if result.returncode == 0:
-                return exe
-        except (OSError, subprocess.TimeoutExpired):
+            # Standard install: <root>/Python3*/python.exe  (newest first)
+            patterns = [
+                os.path.join(root, "Python3*", "python.exe"),
+                os.path.join(root, "python.exe"),  # conda puts python.exe in root
+            ]
+            for pat in patterns:
+                for exe_path in sorted(_glob.glob(pat), reverse=True):
+                    norm = os.path.normcase(exe_path)
+                    if norm not in seen:
+                        seen.add(norm)
+                        candidates.append(exe_path)
+        except Exception:
             continue
 
-    # 3) Last resort: current interpreter (may fail if no customtkinter)
-    return sys.executable
+    # 4) Validate each candidate — just check it's a real Python interpreter.
+    #    The WebUI manages its own dependencies via venv, so customtkinter
+    #    is NOT required (it's already bundled in frozen builds).
+    for exe in candidates:
+        if _is_real_python(exe):
+            return exe
+
+    # 5) Last resort — NEVER use sys.executable when frozen (it's the EXE itself).
+    #    In source mode, sys.executable is the real Python, so it's a safe fallback.
+    if not FROZEN and _is_real_python(sys.executable):
+        return sys.executable
+
+    return None
 
 
 def find_hermes() -> Optional[str]:
@@ -617,6 +691,17 @@ class ServiceManager:
 
         cfg = load_config()
         python_exe = find_python()
+
+        # Guard: if no valid Python interpreter was found, show a clear error
+        # instead of silently spawning a duplicate launcher window.
+        if python_exe is None:
+            self.log("webui", "✗ 未找到有效的 Python 解释器！")
+            self.log("webui", "Hermes WebUI 需要 Python 3.9+ 才能启动")
+            self.log("webui", "请安装 Python 3.9+ 到默认路径，或点击「⚙ 设置」手动指定 Python 路径")
+            self.log("webui", "推荐下载: https://www.python.org/downloads/")
+            self.set_state("webui", ServiceState.ERROR)
+            return False
+
         port = cfg.get("webui_port", 8787)
         host = cfg.get("webui_host", "127.0.0.1")
         auto_browser = cfg.get("auto_open_browser", True)
@@ -748,6 +833,15 @@ class ServiceManager:
         """Start agent first, then webui after confirmation."""
         def _sequence():
             self.log("system", "══════ 启动全部 ══════")
+
+            # Step 0: Check Python is available before anything else
+            python_exe = find_python()
+            if python_exe is None:
+                self.log("webui", "✗ 未找到 Python 解释器，WebUI 无法启动")
+                self.log("webui", "请安装 Python 3.9+ 或点击「⚙ 设置」配置 Python 路径")
+                self.log("system", "══════ 启动失败 ══════")
+                return
+
             # Step 1: Start/verify agent
             ok, msg = check_hermes_installed()
             self.log("agent", f"检查 Hermes Agent: {msg}")
